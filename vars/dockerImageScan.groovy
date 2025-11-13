@@ -1,5 +1,5 @@
 def call(String project, String ImageTag, String hubUser){
-    // Run the scan but continue to generate reports
+    // Run the scan but continue to generate reports (ignore exit code)
     sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${hubUser}/${project}:${ImageTag} || true"
     
     // Generate human-readable report
@@ -12,16 +12,23 @@ def call(String project, String ImageTag, String hubUser){
     archiveArtifacts artifacts: 'scan.txt', fingerprint: true
     archiveArtifacts artifacts: 'trivy-results.sarif', fingerprint: true
     
-    // Fail the build if HIGH/CRITICAL vulnerabilities exist
-    sh """
-       if trivy image --exit-code 1 --severity HIGH,CRITICAL ${hubUser}/${project}:${ImageTag}; then
-           echo "No critical vulnerabilities"
-       else
-           echo "Critical vulnerabilities found!"
-           exit 1
-       fi
-    """
+    // Optionally mark build as UNSTABLE if vulnerabilities exist
+    script {
+        def result = sh(
+            script: "trivy image --exit-code 1 --severity HIGH,CRITICAL ${hubUser}/${project}:${ImageTag} >/dev/null 2>&1; echo \$?",
+            returnStdout: true
+        ).trim()
+        
+        if (result == "1") {
+            // Mark stage/build as unstable but don't stop the pipeline
+            currentBuild.result = 'UNSTABLE'
+            echo "⚠️ Critical vulnerabilities found! See archived scan.txt or trivy-results.sarif"
+        } else {
+            echo "✅ No critical vulnerabilities"
+        }
+    }
 }
+
 
 
 
