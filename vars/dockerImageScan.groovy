@@ -15,18 +15,18 @@ def call(String project, String ImageTag, String hubUser){
     // Optionally mark build as UNSTABLE if vulnerabilities exist
     script {
         def result = sh(
-            script: "trivy image --exit-code 1 --severity HIGH,CRITICAL ${hubUser}/${project}:${ImageTag} >/dev/null 2>&1; echo \$?",
-            returnStdout: true
-        ).trim()
+            script: "trivy image --exit-code 1 --severity HIGH,CRITICAL ${hubUser}/${project}:${ImageTag} >/dev/null 2>&1",
+            returnStatus: true
+        )
         
-        if (result == "1") {
-            // Mark stage/build as unstable but don't stop the pipeline
+        if (result == 1) {
             currentBuild.result = 'UNSTABLE'
             echo "⚠️ Critical vulnerabilities found! See archived scan.txt or trivy-results.sarif"
         } else {
             echo "✅ No critical vulnerabilities"
         }
     }
+
 }
 
 
