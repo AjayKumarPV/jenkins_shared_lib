@@ -1,14 +1,24 @@
 def call(String project, String ImageTag, String hubUser){
-    withCredentials([usernamePassword(
-            credentialsId: "docker",
-            usernameVariable: "USER",
-            passwordVariable: "PASS"
-    )]) {
-        sh "docker login -u '$USER' -p '$PASS'"
+    script {
+        // Abort push if Trivy scan found critical vulnerabilities
+        if (currentBuild.result == 'UNSTABLE') {
+            error("❌ Critical vulnerabilities detected in Trivy scan. Aborting Docker push.")
+        }
+
+        // Docker login using credentials
+        withCredentials([usernamePassword(
+                credentialsId: "docker",
+                usernameVariable: "USER",
+                passwordVariable: "PASS"
+        )]) {
+            sh "docker login -u '$USER' -p '$PASS'"
+        }
+
+        // Push image
+        sh "docker image push ${hubUser}/${project}:${ImageTag}"
     }
-    //sh "docker image push ${hubUser}/${project}:${ImageTag}"
-    sh "docker image push ${hubUser}/${project}:${ImageTag}"   
 }
+
 
 
 // def call(String aws_account_id, String region, String ecr_repoName){
